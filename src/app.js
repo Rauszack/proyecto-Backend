@@ -25,6 +25,7 @@ app.set("views", "./src/views");
 //endpoints
 app.use("/", viewsRouter);
 app.use("/api/products", productsRouter);
+app.use('/api/carts', cartRouter);
 
 
 app.listen(PORT, ()=> {

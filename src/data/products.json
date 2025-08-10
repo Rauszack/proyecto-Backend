@@ -89,12 +89,12 @@
   },
   {
     "id": 9,
-    "title": "Bufanda",
-    "description": "bufanda de invierno",
-    "code": "as212",
-    "price": 3422,
-    "stock": 12,
-    "category": "bufanda",
+    "title": "anillo",
+    "description": "anillo de plata",
+    "code": "a2121",
+    "price": 2000,
+    "stock": 3,
+    "category": "anillos",
     "status": true,
     "thumbnail": ""
   }

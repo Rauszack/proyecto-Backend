@@ -1,92 +1,85 @@
-import express from 'express';
-import ProductManager from '../ProductManager.js';
+import express from "express";
+import Product from "../models/product.model.js";
+import Cart from "../models/cart.model.js";
 
 const viewsRouter = express.Router();
-const productManager = new ProductManager("./src/products.json");
 
-  const user = { username: "Rauszack", isAdmin: false };
-
-const middlewareIsAdmin = (req, res, next) => {
-  if (user.isAdmin) {
-    next();
-  } else {
-    res.redirect("/error");
-  }
-};
-
-// Endpoints
-viewsRouter.get("/", middlewareIsAdmin, (req, res) => {
+// Página principal (home)
+viewsRouter.get("/", (req, res) => {
   res.render("home");
 });
 
-viewsRouter.get("/dashboard", async(req, res) => {
-  const products = await productManager.getProducts();
-  res.render("dashboard", { products, user });
-});
-
-
-viewsRouter.use(express.json());
-
-
-//GET - Obtener datos
-viewsRouter.get("/", (req, res)=> {
-
-  res.json({ status: "success", message: "Hola mundo" });
-});
-
-viewsRouter.get("/api/products", async(req, res)=> {
+// Página de productos con paginación
+viewsRouter.get("/products", async (req, res) => {
   try {
-    const products = await productManager.getProducts();
+    const { limit = 10, page = 1, sort, query } = req.query;
 
-    res.status(200).json({ status: "success", products });
+    let filter = {};
+    if (query) {
+      const isAvailable = query.toLowerCase() === "true" || query.toLowerCase() === "false";
+      if (isAvailable) {
+        filter.status = query.toLowerCase() === "true";
+      } else {
+        filter.category = query;
+      }
+    }
+
+    const options = {
+      limit: parseInt(limit),
+      page: parseInt(page),
+      lean: true
+    };
+
+    if (sort) {
+      options.sort = { price: sort === "asc" ? 1 : -1 };
+    }
+
+    const result = await Product.paginate(filter, options);
+
+    res.render("products", {
+      products: result.docs,
+      totalPages: result.totalPages,
+      currentPage: result.page,
+      hasPrevPage: result.hasPrevPage,
+      hasNextPage: result.hasNextPage,
+      prevPage: result.prevPage,
+      nextPage: result.nextPage,
+      limit,
+      sort,
+      query
+    });
   } catch (error) {
-    res.status(500).json({ status: "error" });
+    res.status(500).send("Error al cargar productos: " + error.message);
   }
 });
 
-//POST
-viewsRouter.post("/api/products", async(req, res) => {
+// Página de detalle de un producto
+viewsRouter.get("/products/:pid", async (req, res) => {
   try {
-    const newProduct = req.body;
-    const products = await productManager.addProduct(newProduct);
-    res.status(201).json({ status : "success", products });
+    const product = await Product.findById(req.params.pid).lean();
+    if (!product) {
+      return res.status(404).send("Producto no encontrado");
+    }
+    res.render("productDetail", { product });
   } catch (error) {
-    res.status(500).json({ status: "error" });
+    res.status(500).send("Error al obtener producto");
   }
 });
 
-//DELETE
-viewsRouter.delete("/api/products/:pid", async(req, res)=> {
+// Página de un carrito específico
+viewsRouter.get("/carts/:cid", async (req, res) => {
   try {
-    const productId = req.params.pid;
-    const products = await productManager.deleteProductById(productId);
-    res.status(200).json({ status: "success", products });
-  } catch (error) {
-    res.status(500).json({ status: "error" });
-  }
-});
+    const cart = await Cart.findById(req.params.cid)
+      .populate("products.product")
+      .lean();
 
-//PUT
-viewsRouter.put("/api/products/:pid", async(req, res)=> {
-  try {
-    const productId = req.params.pid;
-    const updatedData = req.body;
+    if (!cart) {
+      return res.status(404).send("Carrito no encontrado");
+    }
 
-    const products = await productManager.updateProductById(productId, updatedData);
-    res.status(200).json({ status: "success", products });
+    res.render("cart", { cart });
   } catch (error) {
-    res.status(500).json({ status: "error" });
-  }
-});
-
-//getProductBy
-viewsRouter.get("/api/products/:pid", async(req, res)=> {
-  try {
-    const productId = req.params.pid;
-    const product = await productManager.getProductById(productId);
-    res.status(200).json({ status: "success", product });
-  } catch (error) {
-    res.status(500).json({ status: "error" });
+    res.status(500).send("Error al obtener carrito");
   }
 });
 
